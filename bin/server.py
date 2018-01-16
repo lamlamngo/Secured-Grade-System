@@ -6,6 +6,7 @@ import sys
 import os
 from socket import *
 import subprocess
+import hashlib, binascii
 import ssl
 
 # Check arguments
@@ -17,18 +18,25 @@ if len(args) != 3:
 
 # Read usernames and passwords from file.
 passwords = {}
-
 try:
-    pw_file = open('../../users.txt','r')
+    pw_file_r = open('../users.txt','r')
+    pw_file_w = open('../users_temp','w')
 except:
     print("Error: Unable to locate users.txt")
     exit()
 
-lines = pw_file.readlines()
+lines = pw_file_r.readlines()
 #<firstname> <username> <password> <port>
 for line in lines:
     toks = line.strip().split()
-    passwords[toks[1]] = toks[2]
+    salt = os.urandom(16)
+    toks[2] = hashlib.pbkdf2_hmac('sha256',toks[1].encode(),salt,100000)
+    newstr = toks[0] + " " + toks[1] + " " + toks[2].hex() + " " + toks[3] + "\n"
+    pw_file_w.write(newstr)
+
+pw_file_w.close()
+pw_file_r.close()
+os.rename('../users.txt'.replace('.txt', '_temp'),'../users.txt')
 
 # Configure socket parameters.
 try:
@@ -55,7 +63,7 @@ buf_len = 4096
 context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
 context.load_cert_chain(certfile="certificate.pem", keyfile="key.pem")
 
-bindsocket = socket.socket()
+bindsocket = socket()
 bindsocket.bind(addr)
 bindsocket.listen(5)
 # Loop waiting for connections
