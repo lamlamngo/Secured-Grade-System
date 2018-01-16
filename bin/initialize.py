@@ -24,8 +24,8 @@ lines = pw_file_r.readlines()
 #<firstname> <username> <password> <port>
 for line in lines:
     toks = line.strip().split()
-    salt = os.urandom(16)
-    toks[2] = binascii.hexlify(hashlib.pbkdf2_hmac('sha256',toks[1].encode(),salt,100000)).decode()
+    salt = os.urandom(32)
+    toks[2] = binascii.hexlify(hashlib.pbkdf2_hmac('sha256',toks[1].encode(),salt,200000)).decode()
     salt = binascii.hexlify(salt).decode()
 
     #save the hex version of the bytes password and salt values.

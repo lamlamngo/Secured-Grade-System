@@ -101,7 +101,7 @@ while True:
         try:
             #salt hash the entered password
             hahsed_enter_password = hashlib.pbkdf2_hmac('sha256',pw.encode(),
-                binascii.unhexlify(passwords[uname][1].encode()),100000)
+                binascii.unhexlify(passwords[uname][1].encode()),200000)
 
             #compare the entered password with the password onfile.
             if not hmac.compare_digest(hahsed_enter_password,
@@ -120,8 +120,8 @@ while True:
                     pw = f_in.readline().strip()
 
                 # salt hash the new password in order to store.
-                salt = os.urandom(16)
-                pw = hashlib.pbkdf2_hmac('sha256',pw.encode(),salt,100000)
+                salt = os.urandom(32)
+                pw = hashlib.pbkdf2_hmac('sha256',pw.encode(),salt,200000)
                 passwords[uname] = (binascii.hexlify(pw).decode(),binascii.hexlify(salt).decode())
 
                 f_out.write("\nAccess granted. Here are your grades.\n")
@@ -167,7 +167,7 @@ while True:
             pw_file_w.close()
             pw_file_r.close()
             os.rename('../../users.txt'.replace('.txt', '_temp'),'../../users.txt')
-            
+
     #print('Accepted connection from', client_address)
     except:
         print ("Error: Unsuported protocol")
