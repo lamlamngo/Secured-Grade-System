@@ -1,5 +1,6 @@
 # Simple and completely insecure grade-accessing server.
-# Author: Matt Anderson
+# Upgraded by Lam Ngo
+# Author: Matt Anderson and Lam Ngo
 # Version: Winter 2018
 
 import sys
@@ -8,10 +9,8 @@ from socket import *
 import subprocess
 import hashlib, hmac
 import ssl
-import getpass
 import binascii
 
-changed = False
 # Check arguments
 args = sys.argv
 if len(args) != 3:
@@ -35,7 +34,6 @@ for line in lines:
 
 pw_file_r.close()
 
-
 # Configure socket parameters.
 try:
     port = int(args[2])
@@ -43,17 +41,22 @@ except:
     print("Error: Invalid port number")
     exit()
 
+
 host = ''
 addr = (host, port)
 buf_len = 4096
 
-
+#The SSL context created below will only allow TLSv1.2 and later to make a
+#connection to the server.
 context = ssl.SSLContext(ssl.PROTOCOL_TLS)
 context.options |= ssl.OP_NO_TLSv1
 context.options |= ssl.OP_NO_TLSv1_1
+
+#self-signed certificate and key pair to use SSL.
 context.load_cert_chain(certfile="../../certificate.pem", keyfile="../../key.pem")
 
-# Create TCP socket to listen on.
+# Open a socket, bind it to a port (addr), call listen on it,
+# and start waiting for clients to connect.
 try:
     sock = socket(AF_INET,SOCK_STREAM)
     sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
@@ -63,14 +66,19 @@ try:
 except:
     print("Error: Unable to start sever on port", port)
     exit()
+
 #Loop waiting for connections
 while True:
 
-    # Wait for a new connection
+    # accept to get a new socket from the other end.
     connection, client_address = sock.accept()
 
+    #Only goes through if the right protocol is used.
     try:
+        #wrap_socket() method is called to create a server side SSL SOL_SOCKET
+        #for the connection
         connstream = context.wrap_socket(connection, server_side=True)
+
         f_in = connstream.makefile('r')
         f_out = connstream.makefile('w')
 
@@ -79,7 +87,7 @@ while True:
         f_out.flush()
         uname = f_in.readline().strip()
 
-        # Clean up username
+        # Input checking username: only allows in-database 8-character username.
         while len(uname) != 8 or not uname in passwords.keys():
                 f_out.write("Invalid. Please enter username again: ")
                 f_out.flush()
@@ -89,12 +97,19 @@ while True:
         f_out.write("Please enter password: ")
         f_out.flush()
         pw = f_in.readline().strip()
+
         try:
-            hahsed_enter_password = hashlib.pbkdf2_hmac('sha256',pw.encode(),binascii.unhexlify(passwords[uname][1].encode()),100000)
-            if not hmac.compare_digest(hahsed_enter_password, binascii.unhexlify(passwords[uname][0].encode())):
+            #salt hash the entered password
+            hahsed_enter_password = hashlib.pbkdf2_hmac('sha256',pw.encode(),
+                binascii.unhexlify(passwords[uname][1].encode()),100000)
+
+            #compare the entered password with the password onfile.
+            if not hmac.compare_digest(hahsed_enter_password,
+                        binascii.unhexlify(passwords[uname][0].encode())):
                 f_out.write("Error: Invalid username and password combination\n")
                 f_out.flush()
             else:
+                # first login, has to change password
                 while pw == uname or len(pw) < 3:
                     f_out.write("Please change your password.")
                     f_out.write("\n")
@@ -104,11 +119,14 @@ while True:
                     f_out.flush()
                     pw = f_in.readline().strip()
 
+                # salt hash the new password in order to store.
                 salt = os.urandom(16)
                 pw = hashlib.pbkdf2_hmac('sha256',pw.encode(),salt,100000)
                 passwords[uname] = (binascii.hexlify(pw).decode(),binascii.hexlify(salt).decode())
 
                 f_out.write("\nAccess granted. Here are your grades.\n")
+
+                #show the content of the file to the client-side.
                 try:
                     with open("grades_%s" %uname) as f:
                         f_out.write(f.read())
@@ -131,6 +149,7 @@ while True:
             f_out.close()
             print("Closed connection from", client_address)
 
+            #update file with new passwords
             try:
                 pw_file_r = open('../../users.txt','r')
                 pw_file_w = open('../../users_temp','w')
@@ -148,6 +167,7 @@ while True:
             pw_file_w.close()
             pw_file_r.close()
             os.rename('../../users.txt'.replace('.txt', '_temp'),'../../users.txt')
+            
     #print('Accepted connection from', client_address)
     except:
-        print ("Error: Unsupported protocol")
+        print ("Error: Unsuported protocol")
