@@ -98,6 +98,12 @@ while True:
         f_out.flush()
         pw = f_in.readline().strip()
 
+        while len(pw) < 3:
+            f_out.write("Password needs to be more than 3 letters! \n")
+            f_out.write("Enter your password here: ")
+            f_out.flush()
+            pw = f_in.readline().strip()
+
         try:
             #salt hash the entered password
             hahsed_enter_password = hashlib.pbkdf2_hmac('sha256',pw.encode(),
@@ -110,37 +116,37 @@ while True:
                 f_out.flush()
             else:
                 # first login, has to change password
-                while pw == uname or len(pw) < 3:
-                    f_out.write("Please change your password.")
-                    f_out.write("\n")
-                    f_out.write("You will not be able to advance without doing so")
-                    f_out.write("\n")
-                    f_out.write("Enter your new password here: ")
-                    f_out.flush()
-                    pw = f_in.readline().strip()
+                if pw == uname:
+                    while pw == uname:
+                        f_out.write("Please change your password.")
+                        f_out.write("\n")
+                        f_out.write("You will not be able to advance without doing so")
+                        f_out.write("\n")
+                        f_out.write("Enter your new password here: ")
+                        f_out.flush()
+                        pw = f_in.readline().strip()
+                    # salt hash the new password in order to store.
+                    salt = os.urandom(32)
+                    pw = hashlib.pbkdf2_hmac('sha256',pw.encode(),salt,200000)
+                    passwords[uname] = (binascii.hexlify(pw).decode(),binascii.hexlify(salt).decode())                    
+                else:
+                    f_out.write("\nAccess granted. Here are your grades.\n")
 
-                # salt hash the new password in order to store.
-                salt = os.urandom(32)
-                pw = hashlib.pbkdf2_hmac('sha256',pw.encode(),salt,200000)
-                passwords[uname] = (binascii.hexlify(pw).decode(),binascii.hexlify(salt).decode())
+                    #show the content of the file to the client-side.
+                    try:
+                        with open("grades_%s" %uname) as f:
+                            f_out.write(f.read())
+                    except:
+                        f_out.write("I am sorry. You do not have access to view grades on this port.")
 
-                f_out.write("\nAccess granted. Here are your grades.\n")
-
-                #show the content of the file to the client-side.
-                try:
-                    with open("grades_%s" %uname) as f:
-                        f_out.write(f.read())
-                except:
-                    f_out.write("I am sorry. You do not have access to view grades on this port.")
-
-                # # Cat the student grade file in the directory back to client.
-                # # WARNING: This is a terrible way to pass on the contents of a single file.
-                # #          Never write code like this!!!
-                # proc = subprocess.Popen(["cat grades_%s" % uname], stdout=f_out,stdin=f_in, \
-                #                         stderr=subprocess.STDOUT,shell=True)
-                #
-                # # Wait for the process to complete.
-                # proc.wait()
+                    # # Cat the student grade file in the directory back to client.
+                    # # WARNING: This is a terrible way to pass on the contents of a single file.
+                    # #          Never write code like this!!!
+                    # proc = subprocess.Popen(["cat grades_%s" % uname], stdout=f_out,stdin=f_in, \
+                    #                         stderr=subprocess.STDOUT,shell=True)
+                    #
+                    # # Wait for the process to complete.
+                    # proc.wait()
 
         # Terminate connection and clean up
         finally:
