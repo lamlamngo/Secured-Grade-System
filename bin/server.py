@@ -6,9 +6,12 @@ import sys
 import os
 from socket import *
 import subprocess
-import hashlib, binascii
+import hashlib, hmac
 import ssl
+import getpass
+import binascii
 
+changed = False
 # Check arguments
 args = sys.argv
 if len(args) != 3:
@@ -19,24 +22,19 @@ if len(args) != 3:
 # Read usernames and passwords from file.
 passwords = {}
 try:
-    pw_file_r = open('../users.txt','r')
-    pw_file_w = open('../users_temp','w')
+    pw_file_r = open('../../users.txt','r')
 except:
     print("Error: Unable to locate users.txt")
     exit()
 
 lines = pw_file_r.readlines()
-#<firstname> <username> <password> <port>
+#<firstname> <username> <password> <port> <salt>
 for line in lines:
     toks = line.strip().split()
-    salt = os.urandom(16)
-    toks[2] = hashlib.pbkdf2_hmac('sha256',toks[1].encode(),salt,100000)
-    newstr = toks[0] + " " + toks[1] + " " + toks[2].hex() + " " + toks[3] + "\n"
-    pw_file_w.write(newstr)
+    passwords[toks[1]] = (toks[2],toks[4])
 
-pw_file_w.close()
 pw_file_r.close()
-os.rename('../users.txt'.replace('.txt', '_temp'),'../users.txt')
+
 
 # Configure socket parameters.
 try:
@@ -49,28 +47,29 @@ host = ''
 addr = (host, port)
 buf_len = 4096
 
-# # Create TCP socket to listen on.
-# try:
-#     sock = socket(AF_INET,SOCK_STREAM)
-#     sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-#     sock.bind(addr)
-#     sock.listen(1)
-#     print("Started server, pid: %d, user: %s, port: %d" % (os.getpid(),args[1],port))
-# except:
-#     print("Error: Unable to start sever on port", port)
-#     exit()
 
 context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-context.load_cert_chain(certfile="certificate.pem", keyfile="key.pem")
+context.options &= ~ssl.OP_NO_SSLv3
+context.options &= ~ssl.OP_NO_SSLv2
+context.options &= ~ssl.OP_NO_TLSv1
+context.options &= ~ssl.OP_NO_TLSv1_1
+context.load_cert_chain(certfile="../../certificate.pem", keyfile="../../key.pem")
 
-bindsocket = socket()
-bindsocket.bind(addr)
-bindsocket.listen(5)
-# Loop waiting for connections
+# Create TCP socket to listen on.
+try:
+    sock = socket(AF_INET,SOCK_STREAM)
+    sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+    sock.bind(addr)
+    sock.listen(1)
+    print("Started server, pid: %d, user: %s, port: %d" % (os.getpid(),args[1],port))
+except:
+    print("Error: Unable to start sever on port", port)
+    exit()
+#Loop waiting for connections
 while True:
 
     # Wait for a new connection
-    connection, client_address = bindsocket.accept()
+    connection, client_address = sock.accept()
 
     connstream = context.wrap_socket(connection, server_side=True)
     #print('Accepted connection from', client_address)
@@ -93,27 +92,69 @@ while True:
     f_out.write("Please enter password: ")
     f_out.flush()
     pw = f_in.readline().strip()
-
     try:
 
         # Check for valid user/password pair.
-        if not clean_uname in passwords.keys() or passwords[clean_uname] != pw:
-            f_out.write("Error: Invalid username or password combination.\n")
+        if not clean_uname in passwords.keys():
+            f_out.write("Error: Invalid username\n")
             f_out.flush()
 
         else:
-            # Cat the student grade file in the directory back to client.
-            # WARNING: This is a terrible way to pass on the contents of a single file.
-            #          Never write code like this!!!
-            proc = subprocess.Popen(["cat grades_%s" % uname], stdout=f_out,stdin=f_in, \
-                                    stderr=subprocess.STDOUT,shell=True)
+            hahsed_enter_password = hashlib.pbkdf2_hmac('sha256',pw.encode(),binascii.unhexlify(passwords[clean_uname][1].encode()),100000)
+            if not hmac.compare_digest(hahsed_enter_password, binascii.unhexlify(passwords[clean_uname][0].encode())):
+                f_out.write("Error: Invalid username and password combination\n")
+                f_out.flush()
+            else:
+                while pw == clean_uname:
+                    f_out.write("Please change your password.")
+                    f_out.write("\n")
+                    f_out.write("You will not be able to advance without doing so")
+                    f_out.write("\n")
+                    f_out.write("Enter your new password here: ")
+                    f_out.flush()
+                    pw = f_in.readline().strip()
 
-            # Wait for the process to complete.
-            proc.wait()
+                salt = os.urandom(16)
+                pw = hashlib.pbkdf2_hmac('sha256',pw.encode(),salt,100000)
+                passwords[clean_uname] = (binascii.hexlify(pw).decode(),binascii.hexlify(salt).decode())
+
+                f_out.write("\nAccess granted. Here are your grades.\n")
+                try:
+                    with open("grades_%s" %uname) as f:
+                        f_out.write(f.read())
+                except:
+                    f_out.write("I am sorry. You do not have access to view grades on this port.")
+
+                # # Cat the student grade file in the directory back to client.
+                # # WARNING: This is a terrible way to pass on the contents of a single file.
+                # #          Never write code like this!!!
+                # proc = subprocess.Popen(["cat grades_%s" % uname], stdout=f_out,stdin=f_in, \
+                #                         stderr=subprocess.STDOUT,shell=True)
+                #
+                # # Wait for the process to complete.
+                # proc.wait()
 
     # Terminate connection and clean up
     finally:
-        connection.close()
+        connstream.close()
         f_in.close()
         f_out.close()
-        #print("Closed connection from", client_address)
+        print("Closed connection from", client_address)
+
+        try:
+            pw_file_r = open('../../users.txt','r')
+            pw_file_w = open('../../users_temp','w')
+        except:
+            print("Error: Unable to locate users.txt")
+            exit()
+
+        lines = pw_file_r.readlines()
+        #<firstname> <username> <password> <port> <salt>
+        for line in lines:
+            toks = line.strip().split()
+            newstr = toks[0] + " " + toks[1] + " " + passwords[toks[1]][0] + " " + toks[3] + " " + passwords[toks[1]][1] + "\n"
+            pw_file_w.write(newstr)
+
+        pw_file_w.close()
+        pw_file_r.close()
+        os.rename('../../users.txt'.replace('.txt', '_temp'),'../../users.txt')
