@@ -6,13 +6,14 @@ import sys
 import os
 from socket import *
 import subprocess
+import ssl
 
 # Check arguments
 args = sys.argv
 if len(args) != 3:
     print("Usage: python3 server.py <username> <port-number>")
     exit()
-    
+
 
 # Read usernames and passwords from file.
 passwords = {}
@@ -22,7 +23,7 @@ try:
 except:
     print("Error: Unable to locate users.txt")
     exit()
-    
+
 lines = pw_file.readlines()
 #<firstname> <username> <password> <port>
 for line in lines:
@@ -35,33 +36,39 @@ try:
 except:
     print("Error: Invalid port number")
     exit()
-    
+
 host = ''
 addr = (host, port)
 buf_len = 4096
 
-# Create TCP socket to listen on.
-try:
-    sock = socket(AF_INET,SOCK_STREAM)
-    sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-    sock.bind(addr)
-    sock.listen(1)
-    print("Started server, pid: %d, user: %s, port: %d" % (os.getpid(),args[1],port))
-except:
-    print("Error: Unable to start sever on port", port)
-    exit()
+# # Create TCP socket to listen on.
+# try:
+#     sock = socket(AF_INET,SOCK_STREAM)
+#     sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+#     sock.bind(addr)
+#     sock.listen(1)
+#     print("Started server, pid: %d, user: %s, port: %d" % (os.getpid(),args[1],port))
+# except:
+#     print("Error: Unable to start sever on port", port)
+#     exit()
 
+context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+context.load_cert_chain(certfile="certificate.pem", keyfile="key.pem")
 
+bindsocket = socket.socket()
+bindsocket.bind(addr)
+bindsocket.listen(5)
 # Loop waiting for connections
 while True:
 
     # Wait for a new connection
-    connection, client_address = sock.accept()
+    connection, client_address = bindsocket.accept()
 
+    connstream = context.wrap_socket(connection, server_side=True)
     #print('Accepted connection from', client_address)
-    
-    f_in = connection.makefile('r')
-    f_out = connection.makefile('w')
+
+    f_in = connstream.makefile('r')
+    f_out = connstream.makefile('w')
 
     # Request username.
     f_out.write("Please enter username: ")
@@ -92,7 +99,7 @@ while True:
             #          Never write code like this!!!
             proc = subprocess.Popen(["cat grades_%s" % uname], stdout=f_out,stdin=f_in, \
                                     stderr=subprocess.STDOUT,shell=True)
-            
+
             # Wait for the process to complete.
             proc.wait()
 
@@ -102,5 +109,3 @@ while True:
         f_in.close()
         f_out.close()
         #print("Closed connection from", client_address)
-
-
