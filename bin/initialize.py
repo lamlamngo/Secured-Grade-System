@@ -9,7 +9,7 @@ import hashlib, binascii
 # Check arguments
 args = sys.argv
 if len(args) != 1:
-    print("Usage: python3 server.py <username> <port-number>")
+    print("Usage: python3 initialize.py")
     exit()
 
 try:
