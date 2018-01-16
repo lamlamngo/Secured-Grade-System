@@ -59,6 +59,23 @@ if an unsupported protocol is used. Tested using: openssl s_client -ssl3 -connec
 
 DESIGN PRINCIPLES REFLECTION
 
+1. Economy of design:
+	In this process, I got to use a good and tested security tool to secure my server: store salt hashed passwords instead of 
+plain text for user authentication. It is a simple, easy to use and also powerful tool.
+	In addition, using ssl and its protocol are a straight forward and powerful way to secure a server. With just one or two line 
+of code, my server now requires a system capable of TLSv1_2, which is a great step up from the original design. 
+
+2. Psychological Acceptability: 
+	I tried to make the system as usable and fun to use as possible, while making sure that it is still secured. Thus, it will 
+not create too much inconvenience that the users would want o subvert security.
+
+3. Layering:
+	To an extent, this project also has a few layers of protection. SSL offers the first layer, salt hashed password as the second, and username + port 
+verification as the last. While this is not a good use of layering, it offers a good impression of how it works in real-life aopplication.
+
+4. Least privilege:
+	Each user only has access to her own grades, and really cannot do anything else. He or she can log in, but will be logged out immediately after the grades are 
+presented. In addition, due to having different ports, knowing username and password to another's account does not grant the access to that person's grades.
 
 
 
