@@ -55,7 +55,7 @@ Another example is to tell the users that they are entering invalid user names (
 lower the chance of being brute forced.
 
 4. Make it so that only TLSv1.2 and later can make connections to the server to increase security. The server does not crash
-if an unsupported protocol is used. Tested using: openssl s_client -ssl3 -connect localhost:7353
+if an unsupported protocol is used. Tested using: openssl s_client -connect localhost:7353 -tls1
 
 DESIGN PRINCIPLES REFLECTION
 
