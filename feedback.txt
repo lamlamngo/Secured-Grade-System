@@ -1,0 +1,49 @@
+CSC 483 - Project 1 - Feedback
+
+Name:  Lam
+
+
+Using Git                                          30 /30 pts
+
+- Create CSC git lab account                                5 / 5 pts
+- Join CSC 483 group                                        5 / 5 pts
+- Create / import repository                                5 / 5 pts
+- Share repository                                          5 / 5 pts
+- Share repository with developer permissions               5 / 5 pts
+- Add / commit / push all necessary files                   5 / 5 pts
+
+
+Part 1 - SSL                                       25 /25 pts
+
+- Create self-signed certificate                           10 /10 pts
+- Wrap socket in SSL                                       15 /15 pts
+
+
+Part 2 - Salted, Hashed Passwords                  25 /25 pts
+
+- Use hashlib.pbkdf2_hmac to hash                           5 / 5 pts
+- Check hashed passwords in file                           10 /10 pts
+  + It's a security risk to report that the username is invalid on its own.
+- Update users.txt and set default passwords                5 / 5 pts
+- Change default password on first login                    5 / 5 pts
+
+
+
+Part 3 - Fix Security Flaws                        20 /20 pts
+
+- Eliminate use of popen                                    5 / 5 pts
+- Correct username length bug                               5 / 5 pts
+- Program continues to perform intended functions           5 / 5 pts
+- Flaw and modifications documented in README               5 / 5 pts
+  + Very detailed!
+
+
+- General Comments:
+  + Excellent work!
+
+
+
+
+
+
+Score:             100 /100
